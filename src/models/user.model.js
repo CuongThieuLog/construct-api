@@ -38,10 +38,6 @@ const UserSchema = new mongoose.Schema(
         },
       },
     ],
-    information: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Information",
-    },
   },
   { timestamps: true }
 );

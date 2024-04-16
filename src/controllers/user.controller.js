@@ -46,14 +46,21 @@ function UserController() {
         limit
       );
 
-      const transformedData = results.map((user) => ({
-        _id: user._id,
-        role: user.role,
-        username: user.username,
-        email: user.email,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      }));
+      const transformedData = await Promise.all(
+        results.map(async (user) => {
+          const userInfo = await Information.findOne({ user: user._id });
+
+          return {
+            _id: user._id,
+            role: user.role,
+            username: user.username,
+            email: user.email,
+            information: userInfo,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+          };
+        })
+      );
 
       res.status(200).json({
         data: transformedData,
@@ -86,6 +93,88 @@ function UserController() {
       return res
         .status(201)
         .json({ message: "User and information created successfully" });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  };
+
+  this.updateUserInfo = async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { user: updatedUserData, information: updatedInformationData } =
+        req.body;
+
+      const user = await User.findByIdAndUpdate(userId, updatedUserData, {
+        new: true,
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      let information = await Information.findOne({ user: userId });
+
+      if (!information) {
+        information = new Information({
+          user: userId,
+          ...updatedInformationData,
+        });
+      } else {
+        Object.assign(information, updatedInformationData);
+      }
+
+      await information.save();
+
+      return res
+        .status(200)
+        .json({ message: "User and information updated successfully" });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  };
+
+  this.deleteUserInfo = async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      const deletedUser = await User.findByIdAndDelete(userId);
+
+      if (!deletedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      await Information.findOneAndDelete({ user: userId });
+
+      return res.status(200).json({
+        message: "User and associated information deleted successfully",
+      });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  };
+
+  this.getUserInfoById = async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const information = await Information.findOne({ user: userId });
+
+      const userData = {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      };
+
+      return res.status(200).json({ data: { user: userData, information } });
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
